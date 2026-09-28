@@ -1,22 +1,27 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
+  # Keep the title stable: generated imports depend on it.
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Krushi Setu prototype API for market linkage and price discovery
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: market
+  - name: buyers
+  - name: group-selling
+  - name: transactions
+  - name: support
+  - name: admin
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +29,1001 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Sign in with a demo role account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Signed-in demo user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /market-prices:
+    get:
+      operationId: listMarketPrices
+      tags: [market]
+      summary: List prototype market price records
+      parameters:
+        - $ref: "#/components/parameters/CropQuery"
+        - $ref: "#/components/parameters/StateQuery"
+        - $ref: "#/components/parameters/DistrictQuery"
+        - $ref: "#/components/parameters/MandiQuery"
+        - $ref: "#/components/parameters/VarietyQuery"
+        - $ref: "#/components/parameters/GradeQuery"
+        - $ref: "#/components/parameters/DateQuery"
+        - $ref: "#/components/parameters/SearchQuery"
+      responses:
+        "200":
+          description: Market prices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MarketPrice"
+  /market-prices/{crop}:
+    get:
+      operationId: getMarketPricesByCrop
+      tags: [market]
+      summary: Get price history and forecast for a crop
+      parameters:
+        - name: crop
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Crop market detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CropMarketDetail"
+  /mandis:
+    get:
+      operationId: listMandis
+      tags: [market]
+      summary: List nearby prototype mandis
+      responses:
+        "200":
+          description: Mandis
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Mandi"
+  /buyers:
+    get:
+      operationId: listBuyers
+      tags: [buyers]
+      summary: List verified buyer opportunities
+      parameters:
+        - $ref: "#/components/parameters/CropQuery"
+        - $ref: "#/components/parameters/DistanceQuery"
+        - $ref: "#/components/parameters/QuantityQuery"
+        - $ref: "#/components/parameters/MinPriceQuery"
+        - name: verifiedOnly
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        "200":
+          description: Buyers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Buyer"
+  /buyers/{id}:
+    get:
+      operationId: getBuyer
+      tags: [buyers]
+      summary: Get buyer trust details
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Buyer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Buyer"
+        "404":
+          description: Buyer not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /buyers/{id}/report:
+    post:
+      operationId: reportBuyer
+      tags: [buyers]
+      summary: Submit a buyer report for review
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuyerReportInput"
+      responses:
+        "201":
+          description: Report created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuyerReport"
+  /buyers/{id}/rating:
+    post:
+      operationId: rateBuyer
+      tags: [buyers]
+      summary: Rate a completed buyer transaction
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuyerRatingInput"
+      responses:
+        "201":
+          description: Rating created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuyerRating"
+  /group-sales:
+    get:
+      operationId: listGroupSales
+      tags: [group-selling]
+      summary: List open group sales
+      responses:
+        "200":
+          description: Group sales
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GroupSale"
+    post:
+      operationId: createGroupSale
+      tags: [group-selling]
+      summary: Create a group sale
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupSaleInput"
+      responses:
+        "201":
+          description: Group sale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupSale"
+  /group-sales/{id}/join:
+    post:
+      operationId: joinGroupSale
+      tags: [group-selling]
+      summary: Join a group sale with produce
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupJoinInput"
+      responses:
+        "200":
+          description: Updated group sale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupSale"
+  /group-sales/{id}/offers:
+    post:
+      operationId: createBuyerOffer
+      tags: [group-selling]
+      summary: Submit a buyer offer
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuyerOfferInput"
+      responses:
+        "201":
+          description: Buyer offer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuyerOffer"
+  /group-sales/{id}/offers/{offerId}/accept:
+    post:
+      operationId: acceptBuyerOffer
+      tags: [group-selling]
+      summary: Accept a buyer offer and create a transaction
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+        - name: offerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Created transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+  /transactions:
+    get:
+      operationId: listTransactions
+      tags: [transactions]
+      summary: List transaction records
+      responses:
+        "200":
+          description: Transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+    post:
+      operationId: createTransaction
+      tags: [transactions]
+      summary: Create a simulated transaction record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionInput"
+      responses:
+        "201":
+          description: Transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+  /transactions/{id}:
+    get:
+      operationId: getTransaction
+      tags: [transactions]
+      summary: Get a transaction and integrity record
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      responses:
+        "200":
+          description: Transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+  /soil:
+    get:
+      operationId: getSoilReport
+      tags: [support]
+      summary: Get the farmer soil health report
+      responses:
+        "200":
+          description: Soil report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SoilReport"
+    post:
+      operationId: uploadSoilReport
+      tags: [support]
+      summary: Save a soil report upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SoilReportInput"
+      responses:
+        "201":
+          description: Soil report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SoilReport"
+  /crops/recommendations:
+    get:
+      operationId: getCropRecommendations
+      tags: [support]
+      summary: Get market-oriented crop recommendations
+      parameters:
+        - name: location
+          in: query
+          schema:
+            type: string
+        - name: soilType
+          in: query
+          schema:
+            type: string
+        - name: landArea
+          in: query
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Recommendations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CropRecommendation"
+  /weather:
+    get:
+      operationId: getWeather
+      tags: [support]
+      summary: Get prototype weather and crop risk
+      responses:
+        "200":
+          description: Weather
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeatherDashboard"
+  /diagnosis:
+    post:
+      operationId: createDiagnosis
+      tags: [support]
+      summary: Run a prototype crop diagnosis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiagnosisInput"
+      responses:
+        "201":
+          description: Diagnosis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Diagnosis"
+  /sahayaks:
+    get:
+      operationId: listSahayaks
+      tags: [support]
+      summary: List Sahayak helpers
+      responses:
+        "200":
+          description: Sahayaks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sahayak"
+  /sahayak/appointments:
+    post:
+      operationId: createSahayakAppointment
+      tags: [support]
+      summary: Book a Sahayak appointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentInput"
+      responses:
+        "201":
+          description: Appointment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+  /admin/analytics:
+    get:
+      operationId: getAdminAnalytics
+      tags: [admin]
+      summary: Get government market-linkage analytics
+      responses:
+        "200":
+          description: Analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnalytics"
+  /admin/farmers:
+    get:
+      operationId: listAdminFarmers
+      tags: [admin]
+      summary: List farmers for admin
+      responses:
+        "200":
+          description: Farmers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Farmer"
+  /admin/buyers:
+    get:
+      operationId: listAdminBuyers
+      tags: [admin]
+      summary: List buyers for admin
+      responses:
+        "200":
+          description: Buyers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Buyer"
+  /admin/buyers/{id}/status:
+    patch:
+      operationId: updateBuyerStatus
+      tags: [admin]
+      summary: Change a buyer review status
+      parameters:
+        - $ref: "#/components/parameters/IdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuyerStatusInput"
+      responses:
+        "200":
+          description: Updated buyer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Buyer"
+  /admin/transactions:
+    get:
+      operationId: listAdminTransactions
+      tags: [admin]
+      summary: List all transaction records
+      responses:
+        "200":
+          description: Transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+  /admin/reports:
+    get:
+      operationId: listAdminReports
+      tags: [admin]
+      summary: List buyer reports for review
+      responses:
+        "200":
+          description: Reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BuyerReport"
 components:
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    CropQuery:
+      name: crop
+      in: query
+      schema:
+        type: string
+    StateQuery:
+      name: state
+      in: query
+      schema:
+        type: string
+    DistrictQuery:
+      name: district
+      in: query
+      schema:
+        type: string
+    MandiQuery:
+      name: mandi
+      in: query
+      schema:
+        type: string
+    VarietyQuery:
+      name: variety
+      in: query
+      schema:
+        type: string
+    GradeQuery:
+      name: grade
+      in: query
+      schema:
+        type: string
+    DateQuery:
+      name: date
+      in: query
+      schema:
+        type: string
+    SearchQuery:
+      name: search
+      in: query
+      schema:
+        type: string
+    DistanceQuery:
+      name: maxDistance
+      in: query
+      schema:
+        type: number
+    QuantityQuery:
+      name: minQuantity
+      in: query
+      schema:
+        type: number
+    MinPriceQuery:
+      name: minPrice
+      in: query
+      schema:
+        type: number
   schemas:
     HealthStatus:
       type: object
       properties:
+        status: { type: string }
+      required: [status]
+    ErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]
+    LoginInput:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1 }
+      required: [email, password]
+    AuthUser:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        role:
+          type: string
+          enum: [farmer, buyer, sahayak, admin]
+        location: { type: string }
+        primaryCrop: { type: string }
+      required: [id, name, email, role, location, primaryCrop]
+    Mandi:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        district: { type: string }
+        state: { type: string }
+        distanceKm: { type: number }
+        latitude: { type: number }
+        longitude: { type: number }
+      required: [id, name, district, state, distanceKm, latitude, longitude]
+    MarketPrice:
+      type: object
+      properties:
+        id: { type: string }
+        crop: { type: string }
+        mandi: { type: string }
+        district: { type: string }
+        state: { type: string }
+        variety: { type: string }
+        grade: { type: string }
+        minPrice: { type: number }
+        maxPrice: { type: number }
+        modalPrice: { type: number }
+        arrivalQuantity: { type: number }
+        distanceKm: { type: number }
+        source: { type: string }
+        observedAt: { type: string }
+        trendPercent: { type: number }
+        isPrototype: { type: boolean }
+      required:
+        [id, crop, mandi, district, state, variety, grade, minPrice, maxPrice, modalPrice, arrivalQuantity, distanceKm, source, observedAt, trendPercent, isPrototype]
+    PricePoint:
+      type: object
+      properties:
+        label: { type: string }
+        price: { type: number }
+      required: [label, price]
+    CropMarketDetail:
+      type: object
+      properties:
+        crop: { type: string }
+        currentPrice: { type: number }
+        localTraderOffer: { type: number }
+        indicativeLow: { type: number }
+        indicativeHigh: { type: number }
+        history7:
+          type: array
+          items: { $ref: "#/components/schemas/PricePoint" }
+        history30:
+          type: array
+          items: { $ref: "#/components/schemas/PricePoint" }
+        history90:
+          type: array
+          items: { $ref: "#/components/schemas/PricePoint" }
+        isPrototype: { type: boolean }
+      required: [crop, currentPrice, localTraderOffer, indicativeLow, indicativeHigh, history7, history30, history90, isPrototype]
+    Buyer:
+      type: object
+      properties:
+        id: { type: string }
+        businessName: { type: string }
+        location: { type: string }
+        crop: { type: string }
+        requiredQuantity: { type: number }
+        offerPrice: { type: number }
+        verificationStatus:
+          type: string
+          enum: [verified, pending, under_review, suspended]
+        trustStatus:
+          type: string
+          enum: [trusted, review, under_review]
+        completedTransactions: { type: number }
+        trustScore: { type: number }
+        responseTime: { type: string }
+        distanceKm: { type: number }
+        paymentReliability: { type: number }
+        priceFairness: { type: number }
+        communication: { type: number }
+        transactionCompletion: { type: number }
+      required:
+        [id, businessName, location, crop, requiredQuantity, offerPrice, verificationStatus, trustStatus, completedTransactions, trustScore, responseTime, distanceKm, paymentReliability, priceFairness, communication, transactionCompletion]
+    BuyerReportInput:
+      type: object
+      properties:
+        reason: { type: string }
+        description: { type: string }
+        evidence: { type: string }
+      required: [reason, description]
+    BuyerReport:
+      type: object
+      properties:
+        id: { type: string }
+        buyerId: { type: string }
+        buyerName: { type: string }
+        reason: { type: string }
+        description: { type: string }
+        evidence: { type: string }
+        reviewStatus:
+          type: string
+          enum: [open, under_review, resolved]
+        createdAt: { type: string }
+      required: [id, buyerId, buyerName, reason, description, evidence, reviewStatus, createdAt]
+    BuyerRatingInput:
+      type: object
+      properties:
+        transactionId: { type: string }
+        priceFairness: { type: number, minimum: 1, maximum: 5 }
+        paymentReliability: { type: number, minimum: 1, maximum: 5 }
+        communication: { type: number, minimum: 1, maximum: 5 }
+        completion: { type: number, minimum: 1, maximum: 5 }
+      required: [transactionId, priceFairness, paymentReliability, communication, completion]
+    BuyerRating:
+      type: object
+      properties:
+        id: { type: string }
+        buyerId: { type: string }
+        transactionId: { type: string }
+        priceFairness: { type: number }
+        paymentReliability: { type: number }
+        communication: { type: number }
+        completion: { type: number }
+      required: [id, buyerId, transactionId, priceFairness, paymentReliability, communication, completion]
+    GroupSale:
+      type: object
+      properties:
+        id: { type: string }
+        code: { type: string }
+        crop: { type: string }
+        location: { type: string }
+        farmerCount: { type: number }
+        pooledQuantity: { type: number }
+        targetQuantity: { type: number }
+        individualQuantity: { type: number }
+        localOffer: { type: number }
+        bestOffer: { type: number }
         status:
           type: string
+          enum: [open, offer_received, completed]
+        createdAt: { type: string }
+        offers:
+          type: array
+          items: { $ref: "#/components/schemas/BuyerOffer" }
+      required: [id, code, crop, location, farmerCount, pooledQuantity, targetQuantity, individualQuantity, localOffer, bestOffer, status, createdAt, offers]
+    GroupSaleInput:
+      type: object
+      properties:
+        crop: { type: string }
+        location: { type: string }
+        targetQuantity: { type: number, minimum: 1 }
+        quantity: { type: number, minimum: 1 }
+      required: [crop, location, targetQuantity, quantity]
+    GroupJoinInput:
+      type: object
+      properties:
+        quantity: { type: number, minimum: 1 }
+      required: [quantity]
+    BuyerOfferInput:
+      type: object
+      properties:
+        buyerId: { type: string }
+        buyerName: { type: string }
+        price: { type: number, minimum: 1 }
+        quantity: { type: number, minimum: 1 }
+      required: [buyerId, buyerName, price, quantity]
+    BuyerOffer:
+      type: object
+      properties:
+        id: { type: string }
+        buyerId: { type: string }
+        buyerName: { type: string }
+        price: { type: number }
+        quantity: { type: number }
+        status:
+          type: string
+          enum: [submitted, selected, declined]
+        createdAt: { type: string }
+      required: [id, buyerId, buyerName, price, quantity, status, createdAt]
+    TransactionInput:
+      type: object
+      properties:
+        farmerId: { type: string }
+        farmerName: { type: string }
+        buyerId: { type: string }
+        buyerName: { type: string }
+        groupSaleId: { type: string }
+        crop: { type: string }
+        quantity: { type: number, minimum: 1 }
+        agreedPrice: { type: number, minimum: 1 }
+        mandi: { type: string }
+      required: [farmerId, farmerName, buyerId, buyerName, crop, quantity, agreedPrice, mandi]
+    Transaction:
+      type: object
+      properties:
+        id: { type: string }
+        farmerId: { type: string }
+        farmerName: { type: string }
+        buyerId: { type: string }
+        buyerName: { type: string }
+        groupSaleId: { type: ["string", "null"] }
+        crop: { type: string }
+        quantity: { type: number }
+        agreedPrice: { type: number }
+        totalValue: { type: number }
+        date: { type: string }
+        mandi: { type: string }
+        paymentStatus:
+          type: string
+          enum: [pending, simulated_paid, completed]
+        previousHash: { type: string }
+        currentHash: { type: string }
+        integrityStatus:
+          type: string
+          enum: [verified, pending_review]
+        ledgerLabel: { type: string }
       required:
-        - status
-
+        [id, farmerId, farmerName, buyerId, buyerName, groupSaleId, crop, quantity, agreedPrice, totalValue, date, mandi, paymentStatus, previousHash, currentHash, integrityStatus, ledgerLabel]
+    SoilReportInput:
+      type: object
+      properties:
+        fileName: { type: string }
+        nitrogen: { type: number }
+        phosphorus: { type: number }
+        potassium: { type: number }
+        ph: { type: number }
+        organicMatter: { type: number }
+      required: [fileName, nitrogen, phosphorus, potassium, ph, organicMatter]
+    SoilReport:
+      type: object
+      properties:
+        id: { type: string }
+        overallScore: { type: number }
+        nitrogen: { type: number }
+        phosphorus: { type: number }
+        potassium: { type: number }
+        ph: { type: number }
+        organicMatter: { type: number }
+        historicalScores:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScorePoint"
+        suggestions:
+          type: array
+          items: { type: string }
+        fileName: { type: string }
+      required: [id, overallScore, nitrogen, phosphorus, potassium, ph, organicMatter, historicalScores, suggestions, fileName]
+    ScorePoint:
+      type: object
+      properties:
+        year: { type: string }
+        score: { type: number }
+      required: [year, score]
+    CropRecommendation:
+      type: object
+      properties:
+        crop: { type: string }
+        suitability: { type: string }
+        demand: { type: string }
+        priceTrend: { type: string }
+        estimatedCost: { type: number }
+        expectedYield: { type: number }
+        estimatedMargin: { type: number }
+        waterRequirement: { type: string }
+        risk: { type: string }
+        why: { type: array, items: { type: string } }
+        isPrototype: { type: boolean }
+      required: [crop, suitability, demand, priceTrend, estimatedCost, expectedYield, estimatedMargin, waterRequirement, risk, why, isPrototype]
+    ForecastDay:
+      type: object
+      properties:
+        day: { type: string }
+        temperature: { type: number }
+        rainProbability: { type: number }
+        humidity: { type: number }
+        wind: { type: number }
+      required: [day, temperature, rainProbability, humidity, wind]
+    WeatherDashboard:
+      type: object
+      properties:
+        location: { type: string }
+        currentTemperature: { type: number }
+        rainProbability: { type: number }
+        humidity: { type: number }
+        wind: { type: number }
+        forecast:
+          type: array
+          items: { $ref: "#/components/schemas/ForecastDay" }
+        risks:
+          type: array
+          items: { $ref: "#/components/schemas/RiskIndicator" }
+        alert: { type: string }
+        isPrototype: { type: boolean }
+      required: [location, currentTemperature, rainProbability, humidity, wind, forecast, risks, alert, isPrototype]
+    RiskIndicator:
+      type: object
+      properties:
+        label: { type: string }
+        level:
+          type: string
+          enum: [low, moderate, high]
+        value: { type: number }
+      required: [label, level, value]
+    DiagnosisInput:
+      type: object
+      properties:
+        fileName: { type: string }
+        crop: { type: string }
+      required: [fileName, crop]
+    Diagnosis:
+      type: object
+      properties:
+        id: { type: string }
+        fileName: { type: string }
+        crop: { type: string }
+        issue: { type: string }
+        confidence: { type: number }
+        severity: { type: string }
+        recommendedActions: { type: array, items: { type: string } }
+        isPrototype: { type: boolean }
+      required: [id, fileName, crop, issue, confidence, severity, recommendedActions, isPrototype]
+    Sahayak:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        location: { type: string }
+        languages: { type: array, items: { type: string } }
+        available: { type: string }
+        usedSessions: { type: number }
+        totalSessions: { type: number }
+        rating: { type: number }
+      required: [id, name, location, languages, available, usedSessions, totalSessions, rating]
+    AppointmentInput:
+      type: object
+      properties:
+        sahayakId: { type: string }
+        date: { type: string }
+        mode:
+          type: string
+          enum: [call, in_person, panchayat]
+        topic: { type: string }
+      required: [sahayakId, date, mode, topic]
+    Appointment:
+      type: object
+      properties:
+        id: { type: string }
+        sahayakId: { type: string }
+        date: { type: string }
+        mode: { type: string }
+        topic: { type: string }
+        status: { type: string }
+      required: [id, sahayakId, date, mode, topic, status]
+    Farmer:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        village: { type: string }
+        district: { type: string }
+        farmSize: { type: number }
+        primaryCrop: { type: string }
+        status: { type: string }
+        onboardedAt: { type: string }
+      required: [id, name, village, district, farmSize, primaryCrop, status, onboardedAt]
+    BuyerStatusInput:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [verified, pending, under_review, suspended]
+      required: [status]
+    AdminAnalytics:
+      type: object
+      properties:
+        farmersOnboarded: { type: number }
+        activeFarmers: { type: number }
+        priceDiscoveryUsers: { type: number }
+        groupSellingVolume: { type: number }
+        transactions: { type: number }
+        averageTransactionValue: { type: number }
+        verifiedBuyers: { type: number }
+        buyerReports: { type: number }
+        sahayakSessions: { type: number }
+        marketCoverage: { type: number }
+        districtActivity:
+          type: array
+          items: { $ref: "#/components/schemas/ChartPoint" }
+        cropDemand:
+          type: array
+          items: { $ref: "#/components/schemas/ChartPoint" }
+        adoptionTrend:
+          type: array
+          items: { $ref: "#/components/schemas/ChartPoint" }
+        isPrototype: { type: boolean }
+      required:
+        [farmersOnboarded, activeFarmers, priceDiscoveryUsers, groupSellingVolume, transactions, averageTransactionValue, verifiedBuyers, buyerReports, sahayakSessions, marketCoverage, districtActivity, cropDemand, adoptionTrend, isPrototype]
+    ChartPoint:
+      type: object
+      properties:
+        label: { type: string }
+        value: { type: number }
+      required: [label, value]
